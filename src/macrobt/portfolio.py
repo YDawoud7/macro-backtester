@@ -12,27 +12,33 @@ def ex_ante_vol(weights: pd.DataFrame, returns: pd.DataFrame, window: int = 36, 
 
     The covariance at t uses returns up to and including t, which is known
     when the weights for t+1 are set.
+
+    Assets have different start dates, so the covariance is estimated
+    pairwise: each entry uses the months where both assets have returns
+    (at least ``pair_min`` of them). An asset whose own variance can't be
+    estimated yet is left out of the calculation; a pair without enough
+    overlap contributes no covariance term.
     """
     cols = weights.columns
     r = returns.reindex(columns=cols)
     out = pd.Series(np.nan, index=weights.index)
-    r_np = r.to_numpy()
-    w_np = weights.reindex(r.index).to_numpy()
+    w_frame = weights.reindex(r.index)
+    pair_min = 12
     for i in range(len(r.index)):
-        lo = max(0, i - window + 1)
-        win = r_np[lo : i + 1]
-        w = w_np[i]
-        mask = ~np.isnan(w) & (w != 0)
-        if mask.sum() == 0 or (i + 1 - lo) < min_periods:
+        if i + 1 < min_periods:
             continue
-        sub = win[:, mask]
-        sub = sub[~np.isnan(sub).any(axis=1)]
-        if len(sub) < min_periods:
+        w = w_frame.iloc[i]
+        active = w.index[w.notna() & (w != 0)]
+        if len(active) == 0:
             continue
-        cov = np.cov(sub, rowvar=False, ddof=1)
-        cov = np.atleast_2d(cov)
-        var = float(w[mask] @ cov @ w[mask])
-        out.iloc[i] = np.sqrt(max(var, 0.0) * periods_per_year)
+        win = r[active].iloc[max(0, i - window + 1) : i + 1]
+        cov = win.cov(min_periods=pair_min)
+        ok = cov.index[np.isfinite(np.diag(cov.to_numpy()))]
+        if len(ok) == 0:
+            continue
+        c = cov.loc[ok, ok].fillna(0.0).to_numpy()
+        wv = w[ok].to_numpy()
+        out.iloc[i] = np.sqrt(max(float(wv @ c @ wv), 0.0) * periods_per_year)
     return out
 
 

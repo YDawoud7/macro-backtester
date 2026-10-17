@@ -76,3 +76,16 @@ def test_combine_allocations():
     c = combine({"a": a, "b": b}, {"a": 0.5, "b": 0.5})
     assert c.loc[IDX[0]].tolist() == [0.5, 1.0]
     assert np.isnan(c.loc[IDX[1], "Y"])
+
+
+def test_vol_target_survives_assets_with_short_history():
+    # A new asset with only 15 months of returns must not wipe out the whole book.
+    rng = np.random.default_rng(8)
+    idx = pd.date_range("2000-01-31", periods=60, freq="ME")
+    r = pd.DataFrame(rng.normal(0, 0.03, (60, 2)), index=idx, columns=["OLD", "NEW"])
+    r.iloc[:45, 1] = np.nan
+    w = pd.DataFrame({"OLD": 1.0, "NEW": 1.0}, index=idx)
+    w.iloc[:45, 1] = np.nan
+    scaled = vol_target(w, r, target=0.10)
+    assert scaled["OLD"].iloc[30:].notna().all()
+    assert scaled["NEW"].iloc[-1] > 0
