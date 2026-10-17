@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import FuncFormatter, NullFormatter
 
 from .metrics import drawdown_series
 
@@ -31,6 +32,8 @@ def equity_and_drawdown(series: dict[str, pd.Series], path: str | Path, title: s
         dd = drawdown_series(r)
         ax2.plot(dd.index, 100 * dd, color=color, lw=1)
     ax1.set_yscale("log")
+    ax1.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    ax1.yaxis.set_minor_formatter(NullFormatter())
     ax1.set_ylabel("Growth of $1 (log)")
     ax1.set_title(title)
     ax1.legend(frameon=False)

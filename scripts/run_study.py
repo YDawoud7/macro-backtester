@@ -84,6 +84,12 @@ def main() -> None:
     md += ["## Core results (net of costs, " + rows["TSMOM (12m, 19 assets)"]["start"][:7] + " to "
            + rows["TSMOM (12m, 19 assets)"]["end"][:7] + ")", "", fmt_table(rows, KEYS), "",
            "Correlation of monthly returns:", "", corr.round(2).to_markdown(), ""]
+    sub_rows = {}
+    for name, res in runs.items():
+        for a, b in [("2001", "2008"), ("2009", "2019"), ("2020", "2026")]:
+            sub_rows[f"{name}, {a}-{b}"] = metrics.summary(res.returns.loc[a:b])
+    report["core_subperiods"] = sub_rows
+    md += ["### Sub-periods", "", fmt_table(sub_rows, KEYS[:3] + [KEYS[4], KEYS[7]]), ""]
     equity_and_drawdown({k: v.returns for k, v in runs.items()}, FIG / "core_equity.png",
                         "Net excess returns, 10% vol target")
 
